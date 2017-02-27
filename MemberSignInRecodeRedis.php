@@ -16,6 +16,7 @@ class MemberSignInRecodeRedis extends CommonRedis
     public function __construct()
     {
         $this->dbIndex = 7;
+        parent::__construct();
     }
     /**
      * 检测签到信息
@@ -29,7 +30,9 @@ class MemberSignInRecodeRedis extends CommonRedis
      */
     public function queryCheckSignInRecode($memberId)
     {
-        $this->useDB();
+//        $connection = Redis::connection();
+//        var_dump($connection->getConnection());die();
+//        $this->useDB();
         //当前日期
         $dayDate =  date('Y-m-d');
         //下次签到日期
@@ -37,8 +40,10 @@ class MemberSignInRecodeRedis extends CommonRedis
         //当前月份
         $thisMonth = date('Y-m');
         $key = 'mb_snird:' . $memberId . '|' . $thisMonth;
+        $keys = Redis::keys('mb_snird:' . $memberId .'*' );
+        $this->toSlave();
         $memberSignInRecode = Redis::hGetAll($key);
-
+        $this->toMaster();
         if ($memberSignInRecode) {
             if ($memberSignInRecode['date'] == $dayDate) {
                 $this->throwMyException('今日已签到！');
@@ -50,14 +55,11 @@ class MemberSignInRecodeRedis extends CommonRedis
                         Redis::hMset($key, array('date' => $dayDate, 'this_month' => $thisMonth, 'attendance_times' => $memberSignInRecode['attendance_times'] + 1, 'continuous_attendance' => 1, 'next_date' => $nextDate));
                     }
                 } else {
-                    //$lastMonth = date("Y-m", strtotime("-1 month")); 删除之前数据 索引新数据
-                    $keys = Redis::keys('mb_snird:' . $memberId .'*' );
-                    Redis::Del($keys);
-                    Redis::hMset($key, array('date' => $dayDate, 'this_month' => $thisMonth, 'attendance_times' => 1, 'continuous_attendance' => 1, 'next_date' => $nextDate));
+                    $this->queryDeleteMemberSignRecodeRedis($keys,$key,$dayDate,$nextDate,$thisMonth);
                 }
             }
         } else {
-            Redis::hMset($key, array('date' => $dayDate,'this_month' => $thisMonth, 'attendance_times' => 1, 'continuous_attendance' => 1, 'next_date' => $nextDate));
+            $this->queryDeleteMemberSignRecodeRedis($keys,$key,$dayDate,$nextDate,$thisMonth);
         }
     }
     /**
@@ -89,5 +91,21 @@ class MemberSignInRecodeRedis extends CommonRedis
                     'is_sign_in' => false
             ];
         }
+    }
+    /**
+     * 删除签到无用信息
+     * @param keys 用户所有签到记录key
+     * @param key 用户当月签到记录key
+     * @param attendance_times 签到次数
+     * @param continuous_attendance 连续签到次数
+     * @param next_date 下次签到日期
+     * @param thisMonth 当前月份
+     * @param dayDate 当前日期
+     */
+    private function queryDeleteMemberSignRecodeRedis($keys,$key,$dayDate,$thisMonth,$nextDate)
+    {
+        $this->useDB();
+        Redis::Del($keys);
+        Redis::hMset($key, array('date' => $dayDate,'this_month' => $thisMonth, 'attendance_times' => 1, 'continuous_attendance' => 1, 'next_date' => $nextDate));
     }
 }

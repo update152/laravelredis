@@ -17,6 +17,7 @@ class TaskRedis extends CommonRedis
     public function __construct()
     {
         $this->dbIndex = 7;
+        parent::__construct();
     }
     /**
      * 获取所有任务
@@ -99,7 +100,7 @@ class TaskRedis extends CommonRedis
      */
     public function queryTaskFinished($id,$memberId)
     {
-        $this->useDB();
+        $this->toMaster();
         //当前日期
         $dayDate = date('Y-m-d');
         $key = 'mb_tk_finish:' . $id .'|' . $memberId;
@@ -108,6 +109,8 @@ class TaskRedis extends CommonRedis
         if ($memberTask) {
             if ($memberTask['date'] == $dayDate) {
                 $this->throwMyException('已完成该任务！');
+            }else{
+                Redis::hMset($key, array('date'=>$dayDate));
             }
         } else {
             Redis::hMset($key, array('date'=>$dayDate));
@@ -121,10 +124,11 @@ class TaskRedis extends CommonRedis
      */
     public function queryTaskIsFinished($id,$memberId)
     {
-        $this->useDB();
+        $this->toSlave();
         //当前日期
         $dayDate = date('Y-m-d');
         $memberTask = Redis::hGetAll('mb_tk_finish:' . $id .'|' . $memberId);
+
         if ($memberTask) {
             if ($memberTask['date'] == $dayDate) {
                 return true;

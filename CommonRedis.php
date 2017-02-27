@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * User: suer
+ * User: wanghb
  * Date: 2016/12/28
  * Time: 12:05
  */
@@ -9,15 +9,24 @@
 namespace App\Model\Cache\Redis;
 
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Pagination\Paginator;
 use Redis;
 use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 
+
 class CommonRedis
 {
+    private $responseStateSuccess = 'OK';
     // 每页显示条数
     protected $perPage = 6;
     // 库索引
     protected $dbIndex = 0;
+    protected $connection;
+
+    function __construct()
+    {
+        $this->connection = Redis::connection();
+    }
 
     /**
      * 抛出异常
@@ -44,7 +53,9 @@ class CommonRedis
      */
     protected function selectRedisDB($index = 0, $isFlushDB = false)
     {
-        Redis::select($index);
+        $result = Redis::select($index);
+//        echo $result->getPayload();
+        if ($result->getPayload() !== $this->responseStateSuccess) $this->throwMyException('redis select db index(' . $index . ') failure');
         if ($isFlushDB) Redis::flushDB();
     }
 
@@ -60,9 +71,27 @@ class CommonRedis
     {
         $request = app('request');
         $lengthAwarePaginator = new LengthAwarePaginator($data, $length, $this->perPage, $page, $options);
-        $lengthAwarePaginator->setPath($request->url());
+        $lengthAwarePaginator->setPath(Paginator::resolveCurrentPath());
         $lengthAwarePaginator->appends($request->all());
         return $lengthAwarePaginator->toArray();
+    }
+
+    /**
+     * 切换到主机
+     */
+    protected function toMaster()
+    {
+        $this->connection->getConnection()->switchToMaster();
+        $this->useDB();
+    }
+
+    /**
+     * 切换至从机
+     */
+    protected function toSlave()
+    {
+        $this->connection->getConnection()->switchToSlave();
+        $this->useDB();
     }
 
     //    /**

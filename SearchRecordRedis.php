@@ -14,6 +14,7 @@ class SearchRecordRedis extends CommonRedis
     public function __construct()
     {
         $this->dbIndex = 5;
+        parent::__construct();
     }
 
     /**
@@ -22,7 +23,7 @@ class SearchRecordRedis extends CommonRedis
      */
     public function queryAllSearchRecord()
     {
-        $this->useDB();
+        $this->toSlave();
         $searchRecords = Redis::zRevRange('hotKeywords',0,9);
         foreach ($searchRecords as $key => $value) {
              $searchRecord[$key]['keyword'] = $value;
@@ -37,7 +38,8 @@ class SearchRecordRedis extends CommonRedis
      */
     public function queryRecordKeyword($keywords)
     {
-        $this->useDB();
+
+        $this->toMaster();
         $result = Redis::zIncrBy('hotKeywords',1,$keywords);
         if (!$result) $this->throwMyException('添加redis热搜词失败');
     }
