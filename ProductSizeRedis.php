@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * User: wanghb
+ * User: suer
  * Date: 2016/12/28
  * Time: 12:08
  */
@@ -17,6 +17,7 @@ class ProductSizeRedis extends CommonRedis
     public function __construct()
     {
         $this->dbIndex = 1;
+        parent::__construct();
     }
 
     /**
@@ -27,7 +28,7 @@ class ProductSizeRedis extends CommonRedis
      */
     public function getFirstByProductId($id)
     {
-        $this->useDB();
+        $this->toSlave();
         $keys = Redis::keys('p:' . $id . '*');
         if (empty($keys) || count($keys) == 0) return null;
         return Redis::hGetAll($keys[0]);
@@ -41,7 +42,7 @@ class ProductSizeRedis extends CommonRedis
      */
     public function queryAllByProductId($id)
     {
-        $this->useDB();
+        $this->toSlave();
         $keys = Redis::keys('p:' . $id . '*');
         $productSizes = [];
         foreach ($keys as $k => $key) {
@@ -58,14 +59,15 @@ class ProductSizeRedis extends CommonRedis
      */
     public function queryEditProductSize($id)
     {
-        $this->useDB();
-        $productSizes = ProductSize::where('product_id',$id)->get();
+        $this->toMaster();
+        $productSizes = ProductSize::where('product_id', $id)->get();
         $result = [];
         foreach ($productSizes as $key => $value) {
             $result = Redis::hMset('p:' . $value['product_id'] . '|ps:' . $value['id'], $value->toArray());
         }
         if (!$result) $this->throwMyException('更新Redis商品规格信息失败');
     }
+
     /**
      * 更新删除
      *
@@ -74,8 +76,8 @@ class ProductSizeRedis extends CommonRedis
      */
     public function queryDeleteProductSize($id)
     {
-        $this->useDB();
-        $productSizes = ProductSize::where('product_id',$id)->get();
+        $this->toMaster();
+        $productSizes = ProductSize::where('product_id', $id)->get();
         $result = [];
         foreach ($productSizes as $key => $value) {
             $result = Redis::Del('p:' . $value['product_id'] . '|ps:' . $value['id']);

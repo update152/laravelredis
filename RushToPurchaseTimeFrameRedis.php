@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * User: wanghb
+ * User: suer
  * Date: 2016/12/28
  * Time: 12:10
  */
@@ -17,6 +17,7 @@ class RushToPurchaseTimeFrameRedis extends CommonRedis
     public function __construct()
     {
         $this->dbIndex = 3;
+        parent::__construct();
     }
 
     /**
@@ -26,7 +27,7 @@ class RushToPurchaseTimeFrameRedis extends CommonRedis
      */
     public function queryAll()
     {
-        $this->useDB();
+        $this->toSlave();
         $keys = Redis::keys('*');
         $rushToPurchaseTimeFrames = [];
         foreach ($keys as $k => $key) {
@@ -43,7 +44,7 @@ class RushToPurchaseTimeFrameRedis extends CommonRedis
      */
     public function getById($id)
     {
-        $this->useDB();
+        $this->toSlave();
         return Redis::hGetAll('rtptf:' . $id);
     }
 }

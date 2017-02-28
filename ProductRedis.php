@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * User: wanghb
+ * User: suer
  * Date: 2016/11/25
  * Time: 15:08
  */
@@ -13,12 +13,13 @@ use Redis;
 
 class ProductRedis extends CommonRedis
 {
-    private $indexDataRedis;
     private $productSizeRedis;
     private $productImageRedis;
+
     public function __construct()
     {
         $this->dbIndex = 0;
+        parent::__construct();
     }
 
     /**
@@ -62,7 +63,7 @@ class ProductRedis extends CommonRedis
      */
     public function queryAllByRedis($page = 1, $sortFieldName = 'put_daily_new', array $options = [])
     {
-        $keys = Redis::zRevRange($sortFieldName, ($page -1)*$this->perPage,$page*$this->perPage-1);
+        $keys = Redis::zRevRange($sortFieldName, ($page - 1) * $this->perPage, $page * $this->perPage - 1);
         $len = Redis::zCard($sortFieldName);
         $products = [];
         $productImageRedis = new ProductImageRedis();
@@ -79,6 +80,7 @@ class ProductRedis extends CommonRedis
         }
         return $this->toPageData($products, $len, $page, $options);
     }
+
     /**
      * 查询所有商品
      *
@@ -86,7 +88,7 @@ class ProductRedis extends CommonRedis
      */
     protected function queryAll()
     {
-        $this->useDB();
+        $this->toSlave();
         $keys = Redis::Keys('p:*');
         $products = [];
         foreach ($keys as $k => $key) {
@@ -128,13 +130,14 @@ class ProductRedis extends CommonRedis
         $product['image'] = $productImageRedis->getFirstByProductId($id);
         return $product;
     }
+
     /**
      * 抢购商品根据商品商品ID获取商品相关信息
      *
      * @param $id 商品ID
      * @return array
      */
-    public function getDataForDefaultRushToPurchaseList($timeFrameProduct,$timeFrame)
+    public function getDataForDefaultRushToPurchaseList($timeFrameProduct, $timeFrame)
     {
         $productImageRedis = new ProductImageRedis();
         $productSizeRedis = new ProductSizeRedis();
@@ -145,6 +148,7 @@ class ProductRedis extends CommonRedis
         $product['time_frame'] = $timeFrame;
         return $product;
     }
+
     /**
      *  根据商品ID 获取商品
      * @param $id 商品ID
@@ -152,9 +156,9 @@ class ProductRedis extends CommonRedis
      */
     public function getById($id)
     {
-        $this->useDB();
+        $this->toSlave();
         $product = Redis::hGetAll('p:' . $id);
-        if (!$product){
+        if (!$product) {
             $this->throwMyException('商品不存在');
         }
         return $product;
@@ -167,12 +171,12 @@ class ProductRedis extends CommonRedis
      */
     public function queryEditProduct($id)
     {
-        $this->useDB();
+        $this->toMaster();
 
         $this->productSizeRedis = new ProductSizeRedis();
         $this->productImageRedis = new ProductImageRedis();
 
-        $product = Product::where('id',$id)->first();
+        $product = Product::where('id', $id)->first();
         $resultSet = Redis::hMset('p:' . $id, $product->toArray());
         if (!$resultSet) $this->throwMyException('编辑Redis商品链表信息失败');
 
@@ -189,14 +193,14 @@ class ProductRedis extends CommonRedis
      */
     public function queryDeleteProduct($id)
     {
-        $this->useDB();
+        $this->toMaster();
         $this->productSizeRedis = new ProductSizeRedis();
         $this->productImageRedis = new ProductImageRedis();
 
-        $resultProduct = Redis::Del('p:'.$id);//删除redis商品信息
+        $resultProduct = Redis::Del('p:' . $id);//删除redis商品信息
         if (!$resultProduct) $this->throwMyException('删除Redis商品规格信息失败');
 
-        Redis::zRem('put_daily_new','p:'.$id);//删除集合 每日新品
+        Redis::zRem('put_daily_new', 'p:' . $id);//删除集合 每日新品
 
         $this->productSizeRedis->queryDeleteProductSize($id);//删除产品规则信息redis
         $this->productImageRedis->queryDeleteProductImage($id);//删除产品图片信息redis

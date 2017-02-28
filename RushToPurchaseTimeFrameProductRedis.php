@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * User: wanghb
+ * User: suer
  * Date: 2016/12/28
  * Time: 12:11
  */
@@ -17,6 +17,7 @@ class RushToPurchaseTimeFrameProductRedis extends CommonRedis
     public function __construct()
     {
         $this->dbIndex = 4;
+        parent::__construct();
     }
 
     /**
@@ -27,7 +28,7 @@ class RushToPurchaseTimeFrameProductRedis extends CommonRedis
      */
     protected function getByProductSizeId($productSizeId)
     {
-        $this->useDB();
+        $this->toSlave();
         $timeFrameProduct = Redis::hGetAll('*ps:' . $productSizeId . '*');
         if (empty($timeFrameProduct)) return null;
         $rushToPurchaseTimeRedis = new RushToPurchaseTimeFrameRedis();
@@ -56,7 +57,7 @@ class RushToPurchaseTimeFrameProductRedis extends CommonRedis
      */
     protected function queryCustomNumberByTimeFrameId($id, $number = 0, $timeFrame = '' ,$page = 0, $sortFieldName = null, $options = [])
     {
-        $this->useDB();
+        $this->toSlave();
         $keys = Redis::keys('*rtptf:' . $id.'*');
         if ($number > 0 && count($keys) > $number) $keys = array_slice($keys, 0, $number);
         if ($page > 0) {

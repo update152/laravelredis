@@ -15,8 +15,10 @@ class MemberRedis extends CommonRedis
     public function __construct()
     {
         $this->dbIndex = 6;
+        parent::__construct();
         $this->memberModel = new Member();
     }
+
     /**
      * 根据用户ID获取用户信息
      *
@@ -25,11 +27,12 @@ class MemberRedis extends CommonRedis
      */
     public function getDataForDetail($memberId)
     {
-        $this->useDB();
-        $member = Redis::hGetall('member:'.$memberId);
+        $this->toSlave();
+        $member = Redis::hGetall('member:' . $memberId);
         if (!$member) $this->throwMyException('用户不存在');
         return $member;
     }
+
     /**
      * 更新用户信息
      * @param $memberId 用户id
@@ -37,12 +40,13 @@ class MemberRedis extends CommonRedis
      */
     public function queryEditMember($memberId)
     {
-        $this->useDB();
-        $member = $this->memberModel->where('id',$memberId)->first();
-        $result = Redis::hMset('member:'.$memberId, $member->toArray());
+        $this->toMaster();
+        $member = $this->memberModel->where('id', $memberId)->first();
+        $result = Redis::hMset('member:' . $memberId, $member->toArray());
         if (!$result) $this->throwMyException('更新Redis用户信息失败');
 
     }
+
     /**
      * 删除用户redis信息
      * @param $memberId 用户id
@@ -50,8 +54,8 @@ class MemberRedis extends CommonRedis
      */
     public function queryDeleteMember($memberId)
     {
-        $this->useDB();
-        $result = Redis::Del('member:'.$memberId);
+        $this->toMaster();
+        $result = Redis::Del('member:' . $memberId);
         if (!$result) $this->throwMyException('删除Redis用户信息失败');
     }
 

@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * User: wanghb
+ * User: suer
  * Date: 2016/12/28
  * Time: 13:41
  */
@@ -30,6 +30,7 @@ class IndexDataRedis extends CommonRedis
     private $taskRedis;
     private $hotSearchRedis;
     private $memberRedis;
+
     // 索引所有产品相关的数据
     public function indexAllAboutProductData()
     {
@@ -41,7 +42,7 @@ class IndexDataRedis extends CommonRedis
         $errors['banner'] = $this->indexAllBanner();
         $errors['memberTask'] = $this->indexAllMemberTask();
         $errors['hotSearch'] = $this->indexAllHotSearch();
-       // $errors['members'] = $this->indexAllMembers();
+        // $errors['members'] = $this->indexAllMembers();
         $error['memberSignInRecode'] = $this->indexAllMemberSignInRecode();
         return $errors;
     }
@@ -142,12 +143,13 @@ class IndexDataRedis extends CommonRedis
         $rushToPurchaseTimeFrameProducts = null;
         return $errors;
     }
+
     // 索引所有轮换图
     public function indexAllBanner()
     {
         $this->bannerRedis = new BannerRedis();
         $this->bannerRedis->useDB();
-        $banners = Banner::select('id','link','image_path','image_base_name','order')
+        $banners = Banner::select('id', 'link', 'image_path', 'image_base_name', 'order')
             ->orderBy('order', 'desc')
             ->get();
         $errors = [];
@@ -160,6 +162,7 @@ class IndexDataRedis extends CommonRedis
         unset($banners);
         return $errors;
     }
+
     /**
      * 索引所有任务
      *
@@ -176,7 +179,7 @@ class IndexDataRedis extends CommonRedis
             if (!$result) $errors[] = $value;
             $value = null;
         }
-        $tasks = MemberTask::select('id','updated_at')
+        $tasks = MemberTask::select('id', 'updated_at')
             ->orderBy('updated_at', 'desc')
             ->get();
         foreach ($tasks as $task) {
@@ -187,6 +190,7 @@ class IndexDataRedis extends CommonRedis
         unset($tasks);
         return $errors;
     }
+
     /**
      * 索引热搜词
      *
@@ -195,12 +199,12 @@ class IndexDataRedis extends CommonRedis
     {
         $this->hotSearchRedis = new SearchRecordRedis();
         $this->hotSearchRedis->useDB();
-        $hotSearchs = SearchRecord::select('id','keyword','number')
+        $hotSearchs = SearchRecord::select('id', 'keyword', 'number')
             ->orderBy('number', 'desc')->limit(10)
             ->get();
         $errors = [];
-        foreach($hotSearchs as $key=>$value){
-            $result = Redis::zIncrBy('hotKeywords',$value['number'],$value['keyword']);
+        foreach ($hotSearchs as $key => $value) {
+            $result = Redis::zIncrBy('hotKeywords', $value['number'], $value['keyword']);
         }
         if (!$result) $errors[] = $result;
         $hotSearchs = null;
@@ -233,17 +237,17 @@ class IndexDataRedis extends CommonRedis
         $this->memberSignInRecodeRedis = new MemberSignInRecodeRedis();
         $this->memberSignInRecodeRedis->useDB();
 
-        $memberSignInRecords = MemberSignInRecord::groupBy('member_id')->orderBy('date','desc')->get();
+        $memberSignInRecords = MemberSignInRecord::groupBy('member_id')->orderBy('date', 'desc')->get();
         $errors = [];
         $memberSignInRecordModel = new MemberSignInRecord();
 
         foreach ($memberSignInRecords as $key => $value) {
-            $thisMonth = date('Y-m',strtotime($value['date']));
-            $nextDate = date("Y-m-d",strtotime($value['date'] . "+1 day"));
+            $thisMonth = date('Y-m', strtotime($value['date']));
+            $nextDate = date("Y-m-d", strtotime($value['date'] . "+1 day"));
             $attendanceTimes = MemberSignInRecord::whereRaw('date_format(`date` , "%y%m") = ' . date('ym'))
                 ->where('member_id', $value['member_id'])->count();
             $continuousAttendance = $memberSignInRecordModel->getDaysRedis($value['member_id']);
-            $result = Redis::hMset('mb_snird:' . $value['member_id'] . '|' . $thisMonth, array('date' => $value['date'],'this_month' => $thisMonth, 'attendance_times' => $attendanceTimes, 'continuous_attendance' => $continuousAttendance, 'next_date' => $nextDate));
+            $result = Redis::hMset('mb_snird:' . $value['member_id'] . '|' . $thisMonth, array('date' => $value['date'], 'this_month' => $thisMonth, 'attendance_times' => $attendanceTimes, 'continuous_attendance' => $continuousAttendance, 'next_date' => $nextDate));
             if (!$result) $errors[] = $value;
             $value = null;
         }

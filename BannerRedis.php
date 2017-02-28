@@ -16,21 +16,23 @@ class BannerRedis extends CommonRedis
     public function __construct()
     {
         $this->dbIndex = 6;
+        parent::__construct();
         $this->bannerModel = new Banner();
     }
+
     /**
      * 获取banner信息
      * @return array
      */
     public function queryAllBanners()
     {
-        $this->useDB();
+        $this->toSlave();
         $keys = Redis::Keys('bn:*');
         $banners = [];
         foreach ($keys as $k => $key) {
             $banners[] = Redis::hGetAll($key);
         }
-        $banner = ['banners'=>$banners];
+        $banner = ['banners' => $banners];
         return $banner;
     }
 
@@ -41,11 +43,12 @@ class BannerRedis extends CommonRedis
      */
     public function queryEditBanner($id)
     {
-        $this->useDB();
-        $banner = $this->bannerModel->where('id',$id)->first();
-        $result = Redis::hMset('bn:'.$id, $banner->toArray());
+        $this->toMaster();
+        $banner = $this->bannerModel->where('id', $id)->first();
+        $result = Redis::hMset('bn:' . $id, $banner->toArray());
         if (!$result) $this->throwMyException('更新Redis Banner信息失败');
     }
+
     /**
      * 删除banner redis信息
      * @param id
@@ -53,8 +56,8 @@ class BannerRedis extends CommonRedis
      */
     public function queryDeleteBanner($id)
     {
-        $this->useDB();
-        $result = Redis::Del('bn:'.$id);
+        $this->toMaster();
+        $result = Redis::Del('bn:' . $id);
         if (!$result) $this->throwMyException('删除Redis Banner信息失败');
     }
 }

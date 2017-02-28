@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * User: wanghb
+ * User: suer
  * Date: 2016/12/28
  * Time: 12:05
  */
@@ -12,7 +12,6 @@ use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Pagination\Paginator;
 use Redis;
 use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
-
 
 class CommonRedis
 {
